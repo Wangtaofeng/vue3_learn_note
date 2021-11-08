@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      /* 
+      包含  对对象的属性的浅处理的方法的  对象
+      内部使用Reflect处理
+      只是处理一层对象的属性, 并不关心属性是数组还是对象还是属性
+      */
+      const handler = {
+        get(target, key) {
+          console.log('劫持到读取')
+          // 给用于判断的is返回一个结果, is判断如果是读取is_reactive则返回ture
+          // 这样就可以实现isReactive
+          if (key === 'is_reactive') return true
+          return Reflect.get(target, key)
+        },
+        set(target, key, value) {
+          console.log('劫持到写入')
+          Reflect.set(target, key, value)
+        },
+        deleteProprety(target, key) {
+          console.log('劫持到删除')
+          Reflect.deleteProperty(target, key)
+        },
+      }
+      /*
+      --------------------------------------------------------------
+        shallowReactive, 对对象的属性浅监视, 即只对对象本身调用Proxy, 传入上面的处理方法
+        只会对该对象当前一级的属性进行代理
+      */
+      const shallowReactive = (obj) => {
+        // 调用该方法, 返回一个代理对象, Proxy是需要new的, 传入要代理的对象和包含处理代理的方法的 对象
+        return new Proxy(obj, handler)
+      }
+      /*
+     -------------------------------------------
+      reactive, 对对象属性深监视, 递归处理, 只要属性是对象或者数组, 接着对其进行代理
+      每一层还是需要上述的处理一层的方法的对象
+     */
+      const reactive = (target) => {
+        // 如果递归时遇到属性是对象的话, 就接着向下判断并给该对象调用上述的handler, 直到是普通属性
+        // target是null的话类型也是object, 需要排除掉null的情况
+        if (target && typeof target === 'object') {
+          // 数组和对象要分开, 数组是直接操作索引, 对每一个索引上的元素继续判断
+          if (Array.isArray(target)) {
+            for (let i = 0; i < target.length; i++) {
+              // 对数组的每个元素继续递归判断, 如果是普通元素, 则会直接返回, 如果不是, 会接着创建其代理
+              target[i] = reactive(target[i])
+            }
+          } else {
+            // 同样的逻辑, 如果是对象, 则对对象的每个属性递归判断, 如果是普通元素, 则会直接返回, 如果不是, 会接着创建其代理
+            Object.keys(target).forEach((key) => {
+              // 遍历得到的是属性名, 需要使用该属性名进行赋值和继续递归
+              target[key] = reactive(target[key])
+            })
+            // 不管是对象还是数组, 走到最上层的if里, 就需要为其创建代理
+            return new Proxy(target, handler)
+          }
+        }
+        // 如果是普通属性, 直接返回即可, 不需要再创建代理,代理是给拥有该属性的对象创建的, 并不是属性
+        return target
+      }
+
+      /*
+    ------------------------------------------------------
+        判断是否是reactive的方法, 读取代理对象的is_ractive属性, 如果有, 那么就是reactive代理对象
+    */
+      const isReactive = (obj) => {
+        if (obj && obj.is_reactive) return true
+        return false
+      }
+      // ---------------------------------------测试
+      let obj = shallowReactive({
+        name: 1,
+        temp: {
+          name: 2,
+        },
+      })
+      let obj2 = reactive({
+        name: 1,
+        temp: {
+          name: 2,
+        },
+      })
+      ;(() => {
+        console.log('浅监视')
+        obj.name = 3 // 浅层次生效
+        obj.temp.name = 3 // 深层次的不会生效
+      })()
+      ;(() => {
+        console.log('深监视')
+        obj2.name = 3 // 浅层次生效
+        obj2.temp.name = 3 // 深层次生效
+      })()
+
+      //  ----------------------------------------------------------------------------
+      /*
+      shallowRef和ref
+      二者返回的都是ref对象, 数据在,value中保存, 只是数据如果是object的话, ref内部会调用reactive给每个属性生成.value
+      shallow无论是对象还是基本数据, 只会生成一个.value, 因此只有替换了那个value才算是改变(对于对象来说)
+      判断是否是ref对象和上面判断逻辑一致就不写了, 只是在ref对象中给出一个标识属性即可
+    */
+      const shallowRef = (target) => {
+        return {
+          value: target,
+          // 用于标识是否是ref对象
+          is_ref: true,
+          // 提供set, get方法, 只对value生效
+          get value() {
+            return this.value
+          },
+          set value(val) {
+            this.value = val
+          },
+        }
+      }
+      const ref = (target) => {
+        if (target && typeof target === 'object') {
+          /* 
+            并不是递归将所有属性都变成ref对象
+            只有最外层的是ref对象, 内部的.value里面的值, 调用了reactive也变成了响应式
+            但是本身还依旧是ref对象
+            */
+          target = reactive(target)
+        }
+        // 和上面的逻辑一致
+        return {
+          value: target,
+          // 用于标识是否是ref对象
+          is_ref: true,
+          // 提供set, get方法, 只对value生效
+          get value() {
+            return this.value
+          },
+          set value(val) {
+            this.value = val
+          },
+        }
+      }
+      
+      /*
+        readonly和shallowReadonly和前面的reactive基本类似, 都是通过Proxy实现数据的劫持并进行响应的操作
+        只是这两个方法是只允许get, 并且深浅递归的逻辑都是一样的, 只是劫持到的set和delete不被允许操作
+        基本就是重复写上面的reactive和shallowReactive, 就不重复写了
+        isReadonly也是类似, 在get中对key进行判断, 如果读取的是is_reative, 就返回true
+      */
+     // isProxy是检测readonly 或者 reactive, 因为它俩都是通过Proxy代理的方式
+     const isProxy = (obj) =>  {
+       if (isReactive(obj) || isReadonly(obj)) return true
+       return false
+     }
+   
+   
+   
+   </script>
+  </body>
+</html>

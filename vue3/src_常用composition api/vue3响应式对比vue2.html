@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+<script>
+  let obj = {
+    count: 1
+  }
+  /*
+  vue2中, 数据响应式通过getter和setter来对对象的读取和写入劫持
+  并且对于对象是递归进行绑定的, 因此可以进行深层次的绑定
+  但是对于数组, 是通过重写数组方法对数组内数据劫持
+  */
+  // Object.defineProperty(obj, count, {
+  //   get(){},
+  //   set () {}
+  // })
+  // console.log(obj.count)
+
+  /*
+  vue3中, 数据响应不再是通过getter和setter劫持的, 而是通过h5的proxy数据代理
+  对象和数组都是如此, 数据不用再使用重写后的方法才能实现响应式, 可以直接操作数组
+  代理会返回一个代理对象
+  */
+  const pro = new Proxy(obj, {
+    /*
+    代理内部需要结合Reflect反射对象来使用
+    代理上对应的方法和反射的方法几乎都有对应, 代理可以结合反射来使用
+    反射同样也会对数据劫持, 并且上面只有静态方法, 不能被创建实例
+    */
+    get (target, key) {
+      console.log('读取了')
+      return Reflect.get(target, key)
+    },
+    set (target, key, val) {
+      console.log('写入了')
+      Reflect.set(target, key, val)
+    },
+    deleteProperty (target, key) {
+      console.log('删除了')
+      Reflect.deleteProperty(target, key)
+    }
+  })
+  // obj.count += 1 // 不能操作原对象, 只能操作代理对象
+  pro.count += 1
+  console.log(pro.count)
+   delete obj.count // 直接操作原对象并不会走代理的方法
+  console.log(obj, pro)
+  delete pro.count // 操作代理对象, 会走代理里面设置的方法
+</script>
+</body>
+</html>

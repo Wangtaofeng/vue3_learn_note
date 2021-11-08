@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<script src="index.js"></script>
+<script type="text/javascript">
+    const proxyUser1 = shallowReactive({
+        name:'lee',
+        car:{
+            color:'red'
+        }
+    })
+    const proxyUser2 = reactive({
+        name:'lee',
+        car:{
+            color:'red'
+        }
+    })
+    // proxyUser1.name += 'xx'
+    //proxyUser1.name = 'ddd'
+    //delete proxyUser1.car.color
+    // console.log(proxyUser1)
+
+    // proxyUser2.name +='1'
+    // proxyUser2.car.color = 'dd'
+    // delete proxyUser2.car.color
+
+    //==========================================================
+    // 拦截不了深层的
+    const proxyUser3 = shallowReadonly({
+        name:'lee',
+        car:{
+            name:'奔驰',
+            color:'red'
+        },
+        skills:['a','b']
+    })
+    const proxyUser4 = readonly({
+        name:'lee',
+        car:{
+            name:'奔驰',
+            color:'red'
+        },
+        skills:['a','b']
+    })
+
+    const proxyUser5 = shallowRef({
+        name:'lee',
+        car:{
+            name:'奔驰',
+            color:'red'
+        },
+        skills:['a','b']
+    })
+    const proxyUser6 = ref({
+        name:'lee',
+        car:{
+            name:'奔驰',
+            color:'red'
+        },
+        skills:['a','b']
+    })
+    console.log(isRef(ref({})))
+    console.log(isReactive(reactive({})))
+    console.log(isReadonly(readonly({})))
+    console.log(isProxy(readonly({})))
+</script>
+</body>
+</html>
